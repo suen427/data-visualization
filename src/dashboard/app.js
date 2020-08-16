@@ -184,10 +184,8 @@ function GaugeChart() {
       .attr("class", "gauge-ticks")
       .selectAll("path")
       .data(ticks)
-      .enter()
-      .append("g")
+      .join("path")
       .attr("class", "tick")
-      .append("path")
       .attr("d", d => scales.lineRadial(d.coordinates))
       .attr("stroke", d => {
         return scales.needleScale.invert(d.sub_angle) <= needlePercent ? '#58A6D4' : '#C0C4CC'
@@ -262,12 +260,10 @@ function GaugeChart() {
 
     gauge
       .select('.gauge-ticks')
-      .selectAll("g")
+      .selectAll("path")
       .data(ticks)
-      .join("g")
+      .join("path")
       .attr("class", "tick")
-      .select("path")
-      // .attr("d", d => scales.lineRadial(d.coordinates))
       .attr("stroke-width", 4)
       .attr("stroke-linecap", "round")
       .transition()
@@ -422,3 +418,11 @@ setTimeout(() => {
     ticks: 12
   })
 }, 2000)
+
+setTimeout(() => {
+  chart2.update(0.6, {
+    rotation: 0,
+    arc: 1,
+    ticks: 16
+  })
+}, 4000)
