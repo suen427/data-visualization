@@ -20,8 +20,9 @@ function GaugeChart() {
     ticks: 5,
 
     tick_color: "#FFFFFF",
-    needle_color: "#000000"
+    needle_color: "#000000",
 
+    label: ""
   };
 
   var id = "gauge_" + GaugeChartIndex++
@@ -234,7 +235,7 @@ function GaugeChart() {
         </g>
         <g transform="translate(-30, 100)" fill="#FFFFFF" font-family="PingFangSC-Regular, PingFang SC" font-size="16">
           <text>
-            <tspan>All User</tspan>
+            <tspan>${properties.label}</tspan>
           </text>
         </g>
       `)
@@ -255,7 +256,6 @@ function GaugeChart() {
     var interpolate = d3.interpolate(oldNeedlePercent, needlePercent);
     var startAngleInterpolate = d3.interpolate(oldStartAngle, angles.start_angle);
     var endAngleInterpolate = d3.interpolate(oldEndAngle, angles.end_angle);
-
     // svg.attr("viewBox", [0, 0, properties.width, properties.height])
 
     var gauge = svg.select('.gauge-container#' + id)
@@ -324,9 +324,16 @@ function GaugeChart() {
       .duration(duration)
       .attrTween("d", () => {
         return function (t) {
-          return scales.lineRadial([[0, 0], [scales.needleScale(interpolate(t)), needleLength]])
+          var angel = d3.scaleLinear()
+            .domain([0, 1])
+            .range([startAngleInterpolate(t), endAngleInterpolate(t)])(interpolate(t))
+          return scales.lineRadial([[angel, radii.cap], [angel, needleLength]])
         };
       })
+
+      .attr("stroke", properties.needle_color)
+      .attr("stroke-width", 3.5)
+      .attr("stroke-linecap", "round")
 
     gauge
       .select(".needle circle")
@@ -335,7 +342,6 @@ function GaugeChart() {
       .attr("r", radii.cap)
       .attr("stroke", properties.needle_color)
       .attr("stroke-width", 1.5)
-      .style("fill", "white");
 
     return svg;
 
@@ -359,11 +365,12 @@ function CompositedGaugeChart(initProps) {
 
   let CompositedGauge = {}
 
-  CompositedGauge.setProperties = function (props) {
-    for (let chart of charts) {
-      chart.setProperties(props.props);
-      chart.setPercentage(props.percent);
-    }
+  CompositedGauge.setProperties = function (params) {
+    Object.keys(params).map(function (d) {
+      if (d !== 'chartsProps') {
+        props[d] = params[d];
+      }
+    })
   }
 
   CompositedGauge.getGaugeCharts = function() {
@@ -379,15 +386,104 @@ function CompositedGaugeChart(initProps) {
       chart.draw(svg)
     }
 
+    svg.append('g')
+      .attr("class", "data")
+      .html(`
+        <g transform="translate(78, 215)">
+          <circle fill="#FFFFFF" cx="2" cy="9" r="2" />
+          <g transform="translate(12.000000, 0.000000)" font-weight="normal">
+            <g
+              fill="#FFFFFF"
+              font-family="PingFangSC-Regular, PingFang SC"
+              font-size="10"
+            >
+              <text>
+                <tspan x="0" y="11">All User</tspan>
+              </text>
+            </g>
+            <g
+              transform="translate(0.000000, 18.000000)"
+              fill="#58A6D4"
+              font-family="DINCond-Medium"
+              font-size="12"
+            >
+              <text>
+                <tspan x="0" y="11.4210526" class="data-value">${props.data}</tspan>
+              </text>
+            </g>
+          </g>
+        </g>
+        <g transform="translate(164.000000, 215.000000)">
+          <circle fill="#FFFFFF" cx="2" cy="9" r="2" />
+          <g transform="translate(12.000000, 0.000000)">
+            <g
+              fill="#FFFFFF"
+              font-family="PingFangSC-Regular, PingFang SC"
+              font-size="10"
+              font-weight="normal"
+            >
+              <text>
+                <tspan x="0" y="11">Since Last month</tspan>
+              </text>
+            </g>
+            <g transform="translate(0.000000, 18.000000)" fill="#52C41A">
+              <g
+                transform="translate(13.137000, 0.421000)"
+                font-family="DINCond-Medium"
+                font-size="12"
+                font-weight="normal"
+              >
+                <g>
+                  <text>
+                    <tspan x="0" y="11" class="data-change">${props.change}%</tspan>
+                  </text>
+                </g>
+              </g>
+              <g transform="translate(0.392000, 1.421000)">
+                <path
+                  d="M4.725,0.818 C4.46762855,0.581849445 4.07237145,0.581849445 3.815,0.818 L0.6,3.836 C0.480006087,3.94533699 0.411621603,4.10016357 0.411621603,4.2625 C0.411621603,4.42483643 0.480006087,4.57966301 0.6,4.689 C0.85737145,4.92515055 1.25262855,4.92515055 1.51,4.689 L3.627,2.702 L3.627,8.487 C3.627,8.82 3.915,9.09 4.27,9.09 C4.625,9.09 4.913,8.82 4.913,8.487 L4.913,2.702 L7.031,4.689 C7.156,4.807 7.321,4.866 7.485,4.866 C7.65,4.866 7.815,4.807 7.94,4.689 C8.05999391,4.57966301 8.1283784,4.42483643 8.1283784,4.2625 C8.1283784,4.10016357 8.05999391,3.94533699 7.94,3.836 L4.725,0.818 Z"
+                />
+              </g>
+            </g>
+          </g>
+        </g>
+      `)
+
     return svg
   }
 
   CompositedGauge.update = function (newProps = {}, duration = 750) {
+    var oldData = props.data
+    var oldChange = props.change
+    this.setProperties(newProps)
+    
+    var valueInterpolateNumber = d3.interpolateNumber(oldData, props.data)
+    var changeInterpolateNumber = d3.interpolateNumber(oldChange, props.change)
+
     for (let i = 0; i < charts.length; i++) {
       let chart = charts[i]
       let newChartProps = newProps.chartsProps[i]
       chart.update(newChartProps.percent, newChartProps.props, duration)
     }
+
+    
+    svg.select(".data-value")
+      .transition()
+      .duration(duration)
+      .tween('text', function() {
+        return function (t) {
+          this.textContent = Math.round(valueInterpolateNumber(t))
+        }
+      })
+
+    svg.select(".data-change")
+      .transition()
+      .duration(duration)
+      .tween('text', function(){
+        return function(t) {
+          this.textContent = changeInterpolateNumber(t).toFixed(2) + '%'
+        }
+      })
   }
 
   CompositedGauge.svg = CompositedGauge.draw()
@@ -413,11 +509,15 @@ let chart = draw(
   {
     width: 400,
     height: 250,
+
+    data: 32045424,
+    change: 13.23,
     
     chartsProps: [
       {
         percent: 0,
         props: {
+          label: "All User",
           scale: 0.8,
           opacity: 1,
           center: [200, 120],
@@ -434,6 +534,7 @@ let chart = draw(
       {
         percent: 0,
         props: {
+          label: "Customers",
           scale:0.5,
           opacity: 0.5,
           center: [315, 120],
@@ -450,6 +551,7 @@ let chart = draw(
       {
         percent: 0,
         props: {
+          label: "Prospects",
           scale:0.5,
           opacity: 0.5,
           center: [85, 120],
@@ -474,9 +576,10 @@ function update() {
     {
       percent: Math.random(),
       props: {
-        scale: 0.6,
+        label: "Customers",
+        scale: 0.5,
         opacity: 0.5,
-        center: [340, 150],
+        center: [315, 120],
         width: 200,
         height: 200,
         rotation: 16,
@@ -490,9 +593,10 @@ function update() {
     {
       percent: Math.random(),
       props: {
-        scale: 1,
+        label: "All User",
+        scale: 0.8,
         opacity: 1,
-        center: [200, 150],
+        center: [200, 120],
         width: 200,
         height: 200,
         rotation: 0,
@@ -506,8 +610,10 @@ function update() {
     {
       percent: Math.random(),
       props: {
-        scale: 0.6,
-        center: [60, 150],
+        label: "Prospects",
+        scale: 0.5,
+        opacity: 0.5,
+        center: [85, 120],
         width: 200,
         height: 200,
         rotation: -16,
@@ -531,10 +637,12 @@ function update() {
 
   chart.update(
     {
+      data: Math.round(Math.random() * 10000000),
+      change: Math.round(Math.random() * 10000) / 100,
       chartsProps
     },
     3000
   )
 }
 
-// setInterval(update, 5000)
+setInterval(update, 5000)
